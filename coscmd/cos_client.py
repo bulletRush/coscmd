@@ -213,7 +213,7 @@ class Interface(object):
                 _local_path = _path[0]
                 _cos_path = _path[1]
                 try:
-                    file_size = os.path.getsize(_local_path)
+                    file_size = self.get_file_size(_local_path)
                     if file_size <= self._multiupload_threshold:
                         self._inner_threadpool.add_task(
                                 self.single_upload,
@@ -352,7 +352,7 @@ class Interface(object):
 
     def single_upload(self, local_path, cos_path, _http_headers='{}', **kwargs):
         _md5 = ""
-        file_size = os.path.getsize(local_path)
+        file_size = self.get_file_size(local_path)
         if kwargs['skipmd5'] is False:
             if file_size > 5 * 1024 * 1024 * 1024:
                 logger.info(
@@ -491,13 +491,13 @@ class Interface(object):
                     except Exception as e:
                         self._session.close()
                         self._session = requests.session()
-                        logger.warn(u"Upload part failed, key: {key}, partnumber: {part}, retrytimes: {round}, exception: {error}".format(
-                            key=cos_path, part=idx, round=j + 1, error=str(e)))
+                        logger.warn(u"Upload part failed, key: {key}, partnumber: {part}, retrytimes: {round}, exception: {error}({type_e})".format(
+                            key=cos_path, part=idx, round=j + 1, error=str(e), type_e=type(e)))
                         time.sleep(2**j)
                 return -1
 
             offset = 0
-            file_size = path.getsize(local_path)
+            file_size = self.get_file_size(local_path)
             logger.debug("file size: " + str(file_size))
             chunk_size = 1024 * 1024 * self._conf._part_size
             while file_size / chunk_size > 8000:
@@ -557,7 +557,7 @@ class Interface(object):
                 return -1
 
         _md5 = ""
-        file_size = os.path.getsize(local_path)
+        file_size = self.get_file_size(local_path)
         if kwargs['skipmd5'] is False:
             if file_size > 5 * 1024 * 1024 * 1024:
                 logger.info(
@@ -601,8 +601,17 @@ class Interface(object):
             logger.warn(to_unicode(e))
         return 0
 
+    def get_file_size(self, filename):
+        "Get the file size by seeking at end"
+        fd = os.open(filename, os.O_RDONLY)
+        try:
+            return os.lseek(fd, 0, os.SEEK_END)
+        finally:
+            os.close(fd)
+
     def upload_file(self, local_path, cos_path, _http_headers='{}', **kwargs):
-        file_size = path.getsize(local_path)
+        file_size = self.get_file_size(local_path)
+        logger.debug("%s file size: %d", local_path, file_size)
         if file_size <= self._conf._part_size * 1024 * 1024 + 1024 or file_size <= self._multiupload_threshold:
             return self.single_upload(local_path, cos_path, _http_headers, **kwargs)
         else:

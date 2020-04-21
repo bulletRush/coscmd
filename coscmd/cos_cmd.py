@@ -241,9 +241,9 @@ class Op(object):
                 if os.path.isdir(args.local_path):
                     logger.warn("\"{path}\" is a directory, use \'-r\' option to upload it please".format(path=to_printable_str(args.local_path)))
                     return -1
-                if os.path.isfile(args.local_path) is False:
-                    logger.warn("cannot stat '%s': No such file or directory" % to_printable_str(args.local_path))
-                    return -1
+                if not os.path.isfile(args.local_path) is False:
+                    logger.warn("%s may not a file", to_printable_str(args.local_path))
+                    # return -1
                 rt = Interface.upload_file(args.local_path, args.cos_path, args.headers, **kwargs)
                 return rt
             return -1
